@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess-a-Flick</title>
+    <!-- Use Tailwind CSS for a clean, modern, and responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Deep blue-black for cinematic vibe */
+            color: #f8f9fa; /* Light text for readability */
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        .game-container {
+            max-width: 900px;
+        }
+
+        .gradient-text {
+            background-image: linear-gradient(45deg, #FFD700, #FFEA00); /* Golden-yellow gradient */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: moveGradient 5s ease infinite;
+            background-size: 200% 200%;
+            text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700, 0 0 20px #FFD700;
+        }
+
+        @keyframes moveGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .game-card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            background-color: #2d3748; /* Dark gray */
+            transition: transform 0.3s ease;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .btn {
+            @apply px-4 py-2 font-bold rounded-xl transition-all duration-300;
+        }
+
+        .btn-blue {
+            @apply bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-md;
+            box-shadow: 0 0 5px #1e90ff, 0 0 10px #1e90ff;
+        }
+        
+        .btn-white {
+            @apply bg-gray-800 text-white border-2 border-gray-700 hover:border-yellow-400 active:scale-95 shadow-md;
+        }
+
+        .btn-disabled {
+            @apply bg-gray-600 text-gray-400 cursor-not-allowed opacity-50 shadow-none;
+            box-shadow: none;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            animation: slideUp 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .timer-glow {
+            box-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700;
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px #FFD700, 0 0 10px #FFEA00; }
+            50% { box-shadow: 0 0 10px #FFD700, 0 0 20px #FFEA00; }
+            100% { box-shadow: 0 0 5px #FFD700, 0 0 10px #FFEA00; }
+        }
+        
+        .neon-glow-icon {
+            filter: drop-shadow(0 0 5px #FFD700) drop-shadow(0 0 10px #FFEA00);
+        }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center min-h-screen">
+
+    <!-- Game Title -->
+    <h1 class="text-4xl sm:text-6xl font-extrabold my-8 text-center gradient-text">Guess-a-Flick</h1>
+
+    <!-- Main Game Container -->
+    <div id="game-container" class="game-container w-full max-w-4xl p-6 bg-white rounded-2xl shadow-xl flex flex-col md:flex-row gap-6 animate-pulse-in">
+        
+        <!-- Main Game Area -->
+        <div id="main-game-area" class="w-full md:w-2/3 flex flex-col items-center justify-center p-6 bg-gray-800 rounded-xl transition-all duration-500 ease-in-out">
+            <div id="pre-game-screen" class="text-center transition-opacity duration-500">
+                <h2 class="text-2xl font-bold mb-4 text-white">Welcome to Guess-a-Flick!</h2>
+                <p class="text-gray-300 mb-6">A game of movies, songs, and emojis. Are you ready?</p>
+                <button onclick="startGame()" class="btn btn-blue text-lg px-8 py-3 transform hover:scale-105 active:scale-100">Start Game</button>
+            </div>
+
+            <div id="choosing-screen" class="hidden text-center transition-opacity duration-500">
+                <div class="flex items-center justify-between w-full mb-4">
+                    <h2 class="text-xl font-bold text-white"><span id="current-team-name">Team 1</span>'s Turn</h2>
+                    <div id="choosing-timer" class="text-3xl font-bold text-yellow-400 bg-gray-900 rounded-full w-14 h-14 flex items-center justify-center timer-glow">10</div>
+                </div>
+                <p class="text-gray-300 mb-6">Choose a category and a difficulty level:</p>
+                
+                <div id="category-buttons" class="flex justify-center space-x-4 mb-6">
+                    <button id="movie-btn" onclick="setCategory('movies')" class="btn bg-gray-700 text-white hover:bg-gray-600 text-lg transform hover:scale-105 active:scale-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2 neon-glow-icon"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18"/><path d="M12 3v18"/><path d="M17 3v18"/></svg>
+                        Movie
+                    </button>
+                    <button id="song-btn" onclick="setCategory('songs')" class="btn bg-gray-700 text-white hover:bg-gray-600 text-lg transform hover:scale-105 active:scale-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2 neon-glow-icon"><path d="M12 21.5V7.5"/><path d="M12 18.5a4 4 0 1 0-4-4"/><path d="M8 14.5a4 4 0 1 1 4 4"/><path d="M22 17.5a4 4 0 1 0-4-4"/><path d="M18 13.5a4 4 0 1 1 4 4"/></svg>
+                        Song
+                    </button>
+                </div>
+
+                <div id="difficulty-buttons" class="flex justify-center space-x-4 mb-6 hidden">
+                    <button onclick="handleClueSelection('easy')" class="btn bg-green-600 hover:bg-green-700 text-white text-md py-3 px-6">Easy (1 pt)</button>
+                    <button onclick="handleClueSelection('medium')" class="btn bg-yellow-600 hover:bg-yellow-700 text-white text-md py-3 px-6">Medium (3 pts)</button>
+                    <button onclick="handleClueSelection('hard')" class="btn bg-red-600 hover:bg-red-700 text-white text-md py-3 px-6">Hard (5 pts)</button>
+                </div>
+            </div>
+            
+            <div id="guessing-screen" class="hidden text-center transition-opacity duration-500 w-full">
+                <div class="flex items-center justify-between w-full mb-4">
+                    <h2 class="text-2xl font-bold text-white"><span id="current-team-guessing">Team 1</span>'s Turn</h2>
+                    <div id="guessing-timer" class="text-4xl font-bold text-yellow-400 bg-gray-900 rounded-full w-16 h-16 flex items-center justify-center timer-glow">30</div>
+                </div>
+                <div class="text-6xl sm:text-8xl my-8 p-4 bg-gray-900 rounded-xl w-full break-words">
+                    <span id="emoji-clue"></span>
+                </div>
+                <input id="answer-input" type="text" class="w-full p-3 text-center text-lg rounded-xl border-2 border-gray-700 bg-gray-900 text-white focus:outline-none focus:border-yellow-400 transition-all duration-300" placeholder="Guess the name...">
+                <button onclick="checkAnswer()" class="btn btn-blue w-full mt-4 text-lg">Submit Guess</button>
+            </div>
+
+            <div id="results-screen" class="hidden text-center transition-opacity duration-500">
+                <h2 id="result-message" class="text-2xl font-bold mb-4"></h2>
+                <p id="correct-answer" class="text-lg text-gray-300 mb-6"></p>
+                <button onclick="startTurn()" class="btn btn-blue text-lg px-8 py-3">Next Turn</button>
+            </div>
+        </div>
+
+        <!-- Scoreboard Area -->
+        <div class="w-full md:w-1/3 p-4 bg-gray-900 rounded-xl flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-2xl font-bold text-white">Scoreboard</h3>
+                <button onclick="declareWinner()" class="btn bg-yellow-400 text-gray-900 hover:bg-yellow-500 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1 neon-glow-icon"><path d="m15 11-1.29-1.29a1 1 0 0 0-1.42 0L9 13.59V12a1 1 0 0 0-2 0v4a1 1 0 0 0 1 1h4a1 1 0 0 0 0-2H9.41l1.29-1.29a1 1 0 0 0 0-1.42L11 15"/><path d="M8 20h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/></svg>
+                    Declare Winner
+                </button>
+            </div>
+            <ul id="scoreboard-list" class="space-y-2 flex-grow">
+                <!-- Scoreboard items will be injected here by JS -->
+            </ul>
+        </div>
+
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winner-modal" class="modal-overlay hidden">
+        <div class="modal-content text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 animate-bounce neon-glow-icon"><path d="m15 5-4 4"/><path d="M15 5h4V9"/><path d="M8 8H2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h-6"/><path d="M10 12a2 2 0 1 0-4 0 2 2 0 0 0 4 0z"/><path d="M16 12a2 2 0 1 0-4 0 2 2 0 0 0 4 0z"/><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2"/></svg>
+            <h3 class="text-4xl font-extrabold gradient-text mb-2">Winner!</h3>
+            <p id="winner-message" class="text-2xl font-bold text-white mb-6"></p>
+            <button onclick="document.getElementById('winner-modal').classList.add('hidden')" class="btn btn-blue text-lg">Close</button>
+        </div>
+    </div>
+
+
+<script>
+    // --- Data Definitions ---
+    const clueData = {
+        movies: {
+            easy: [
+                { name: "The Lion King", emojis: "🦁👑" }, { name: "Finding Nemo", emojis: "🔍🐠" },
+                { name: "Frozen", emojis: "❄️⛄️➡️" }, { name: "Jaws", emojis: "🦈" },
+                { name: "E.T. the Extra-Terrestrial", emojis: "👽📞🏡" }, { name: "Home Alone", emojis: "🏠🤦‍♂️" },
+                { name: "Up", emojis: "🎈👴🏠" }, { name: "Shrek", emojis: "👹💚" },
+                { name: "Titanic", emojis: "🚢🧊💔" }, { name: "Toy Story", emojis: "🤠🚀➡️" },
+                { name: "Cinderella", emojis: "🐭🎃👠" }, { name: "Cars", emojis: "🚗💨" },
+                { name: "Moana", emojis: "🌊🌺⛵" }, { name: "Aladdin", emojis: "🧞‍♂️👳‍♂️👸" },
+                { name: "The Jungle Book", emojis: "🐒🐯🐻" }, { name: "Alice in Wonderland", emojis: "👧🐇🎩" },
+                { name: "Ratatouille", emojis: "🐀👨‍🍳🇫🇷" }, { name: "Ghostbusters", emojis: "👻🔫🚫" },
+                { name: "The Lego Movie", emojis: "🧱👷‍♂️" }, { name: "Madagascar", emojis: "🦓🦁🦛🦒🇲🇬" },
+                { name: "Despicable Me", emojis: "🍌😈" }, { name: "Wreck-It Ralph", emojis: "🕹️👊👑" },
+                { name: "The Croods", emojis: "🧔🦱👩‍🦰👨‍👦‍👦🐾" }, { name: "Kung Fu Panda", emojis: "🐼🥋" },
+                { name: "Minions", emojis: "🍌👓" }, { name: "Zootopia", emojis: "🦊🐰🏙️" },
+                { name: "Inside Out", emojis: "😊😭😡🤢😨" }, { name: "Coco", emojis: "💀🎶🎸" },
+                { name: "Trolls", emojis: "🕺💃🎶" }, { name: "Sing", emojis: "🎤🐷🦍🐘🐨" },
+            ],
+            medium: [
+                { name: "Jurassic Park", emojis: "🦖🏞️" }, { name: "Pulp Fiction", emojis: "🕺💃🍔🩸" },
+                { name: "The Matrix", emojis: "💊👨‍💻" }, { name: "Harry Potter and the Sorcerer's Stone", emojis: "🧙‍♂️⚡️🚂" },
+                { name: "The Breakfast Club", emojis: "�👧🧑👨‍🦱👩‍🦰🏫" }, { name: "The Shining", emojis: "🏨👻🧊🔪" },
+                { name: "The Dark Knight", emojis: "🦇🃏" }, { name: "The Notebook", emojis: "📝👩‍❤️‍👨" },
+                { name: "Star Wars", emojis: "✨⚔️🚀" }, { name: "Pirates of the Caribbean", emojis: "🏴‍☠️⚓️💰" },
+                { name: "The Hunger Games", emojis: "🏹🔥" }, { name: "Forrest Gump", emojis: "🏃‍♂️🍫📦" },
+                { name: "Men in Black", emojis: "🤵‍♂️🕶️👽" }, { name: "Mission: Impossible", emojis: "🕵️‍♂️💥" },
+                { name: "Lord of the Rings", emojis: "🧙‍♂️💍🏞️" }, { name: "Back to the Future", emojis: "👨‍🔬🕰️🚗" },
+                { name: "The Wizard of Oz", emojis: "👧👠🌈🌪️" }, { name: "Goodfellas", emojis: "👨‍👦‍👦🇮🇹🔫" },
+                { name: "The Wolf of Wall Street", emojis: "🐺🌃💰" }, { name: "The Sixth Sense", emojis: "👦👻👁️" },
+                { name: "Psycho", emojis: "🔪🚿" }, { name: "Saving Private Ryan", emojis: "🎖️👨‍✈️" },
+                { name: "The Silence of the Lambs", emojis: "🤫🐑" }, { name: "The Truman Show", emojis: "📺👦" },
+                { name: "Inglourious Basterds", emojis: "🇩🇪🇫🇷🔫🎬" }, { name: "The Godfather", emojis: "👨‍👧‍👦🍊🐴" },
+                { name: "Die Hard", emojis: "🏙️💥🎄" }, { name: "A Clockwork Orange", emojis: "🕰️🍊" },
+                { name: "The Grand Budapest Hotel", emojis: "🏩👨‍🍳🛎️" }, { name: "L.A. Confidential", emojis: "🚔🤫" },
+            ],
+            hard: [
+                { name: "Donnie Darko", emojis: "🐰🕰️" }, { name: "Planet of the Apes", emojis: "🦍🌍" },
+                { name: "No Country for Old Men", emojis: "👴👴🔪💰" }, { name: "Catch Me If You Can", emojis: "✈️📝🏃‍♂️" },
+                { name: "Eternal Sunshine of the Spotless Mind", emojis: "🧠❤️❌" }, { name: "The Big Lebowski", emojis: "🎳🕺🥤" },
+                { name: "One Flew Over the Cuckoo's Nest", emojis: "🤪🦅" }, { name: "Requiem for a Dream", emojis: "💉💊📺" },
+                { name: "Kill Bill", emojis: "⚔️👰" }, { name: "A Beautiful Mind", emojis: "🤯➕➖" },
+                { name: "Pulp Fiction", emojis: "🕺💃🍔" }, { name: "Fargo", emojis: "🥶🚗🪓" },
+                { name: "The Royal Tenenbaums", emojis: "🏠👨‍👩‍👦‍👦" }, { name: "Fight Club", emojis: "🥊🧼" },
+                { name: "American History X", emojis: "👦👦💪" }, { name: "Pans Labyrinth", emojis: "👧🐐🧚‍♀️" },
+                { name: "Trainspotting", emojis: "💉🏃‍♂️" }, { name: "Being John Malkovich", emojis: "🧍‍♂️🧍‍♂️🎬" },
+                { name: "The Good, the Bad and the Ugly", emojis: "🤠🔫💰" }, { name: "Amélie", emojis: "👧🎨❤️" },
+                { name: "V for Vendetta", emojis: "🎭💥" }, { name: "The Usual Suspects", emojis: "👨‍✈️👮‍♀️👮‍♂️" },
+                { name: "Fear and Loathing in Las Vegas", emojis: "👨‍🦲👨‍🦱🌵" }, { name: "Whiplash", emojis: "🥁💥" },
+                { name: "Blade Runner", emojis: "🔪🏃‍♂️🌃" }, { name: "Memento", emojis: "🧠📸" },
+                { name: "The Fountain", emojis: "🌳❤️🌌" }, { name: "Dr. Strangelove", emojis: "☢️👨‍🚀💣" },
+                { name: "Children of Men", emojis: "👶❌" }, { name: "2001: A Space Odyssey", emojis: "👨‍🚀🚀⚫" },
+            ],
+        },
+        songs: {
+            easy: [
+                { name: "Baby", emojis: "👶" }, { name: "Let It Go", emojis: "❄️➡️" },
+                { name: "Happy", emojis: "👏😀" }, { name: "Poker Face", emojis: "🃏😐" },
+                { name: "Despacito", emojis: "🚶‍♂️➡️" }, { name: "Bad Romance", emojis: "👎💖" },
+                { name: "Shake It Off", emojis: "🤸‍♀️➡️💨" }, { name: "Hello", emojis: "☎️👋" },
+                { name: "Don't Stop Believin'", emojis: "🚫🛑🙏" }, { name: "Rolling in the Deep", emojis: "🎲⬇️🌊" },
+                { name: "Umbrella", emojis: "☂️" }, { name: "Single Ladies", emojis: "💍🙋‍♀️" },
+                { name: "Firework", emojis: "🎆💥" }, { name: "Eye of the Tiger", emojis: "👀🐯" },
+                { name: "Watermelon Sugar", emojis: "🍉🍬" }, { name: "Waka Waka", emojis: "🕺💃🌍" },
+                { name: "Old Town Road", emojis: "🤠🛣️" }, { name: "Hotline Bling", emojis: "☎️☎️📞" },
+                { name: "Havana", emojis: "💃🇨🇺" }, { name: "Uptown Funk", emojis: "🏘️🕺🎶" },
+                { name: "Dancing Queen", emojis: "💃👑" }, { name: "I Wanna Hold Your Hand", emojis: "🙋‍♂️🤝🙋‍♀️" },
+                { name: "Africa", emojis: "🌍" }, { name: "Thriller", emojis: "🧟‍♂️🕺" },
+                { name: "Like a Virgin", emojis: "🙏🙋‍♀️" }, { name: "I Will Always Love You", emojis: "❤️❤️🥰" },
+                { name: "Wonderwall", emojis: "🤔🧱" }, { name: "Wake Me Up Before You Go-Go", emojis: "⏰🚶‍♂️🕺🕺" },
+                { name: "All Star", emojis: "⭐🌟⭐" }, { name: "Bohemian Rhapsody", emojis: "👑🎶" },
+            ],
+            medium: [
+                { name: "Stairway to Heaven", emojis: "🪜➡️😇" }, { name: "Sweet Dreams (Are Made of This)", emojis: "🍬😴➡️" },
+                { name: "Take Me to Church", emojis: "🙋‍♂️➡️⛪" }, { name: "Blinding Lights", emojis: "🙈💡" },
+                { name: "Smells Like Teen Spirit", emojis: "👃➡️👦👻" }, { name: "Bohemian Rhapsody", emojis: "👑🎶" },
+                { name: "Mr. Brightside", emojis: "👨‍💼💡" }, { name: "I Love Rock 'n' Roll", emojis: "❤️🎸🤘" },
+                { name: "Every Breath You Take", emojis: "🌬️👀" }, { name: "What a Wonderful World", emojis: "🗺️💚" },
+                { name: "A Sky Full of Stars", emojis: "🌌🌟" }, { name: "Hotel California", emojis: "🏨🌴" },
+                { name: "The Sound of Silence", emojis: "🔊🤫" }, { name: "House of the Rising Sun", emojis: "🏠⬆️☀️" },
+                { name: "Can't Help Falling in Love", emojis: "🚫🙋‍♂️⬇️❤️" }, { name: "With or Without You", emojis: "➡️⬅️🚫❤️" },
+                { name: "Somebody That I Used to Know", emojis: "👤➡️🤷‍♂️" }, { name: "California Dreamin'", emojis: "🌴💭" },
+                { name: "American Pie", emojis: "🇺🇸🥧" }, { name: "Imagine", emojis: "💭🌎" },
+                { name: "Under the Bridge", emojis: "⬇️🌉" }, { name: "Wake Me Up", emojis: "⏰🙋‍♂️" },
+                { name: "Hallelujah", emojis: "🙌" }, { name: "Heart of Glass", emojis: "❤️🍷" },
+                { name: "We Will Rock You", emojis: "🤘🗿" }, { name: "Beat It", emojis: "👊➡️" },
+                { name: "Hey Jude", emojis: "👋🧔" }, { name: "Sweet Child o' Mine", emojis: "🍬👶🏻➡️🙋‍♀️" },
+                { name: "Don't Worry, Be Happy", emojis: "🚫😟😀" }, { name: "Hit the Road Jack", emojis: "👊🛣️➡️🚶‍♂️" },
+            ],
+            hard: [
+                { name: "Purple Rain", emojis: "🟪🌧️" }, { name: "Yellow Submarine", emojis: "🟡⚓️" },
+                { name: "Born to Run", emojis: "👶➡️🏃‍♂️" }, { name: "Bohemian Rhapsody", emojis: "👑🎶" },
+                { name: "Sympathy for the Devil", emojis: "🤝👹" }, { name: "Crazy Little Thing Called Love", emojis: "🤪🤏💖" },
+                { name: "Mr. Jones", emojis: "🧔🏻‍♂️" }, { name: "Another Brick in the Wall", emojis: "🧱🧱" },
+                { name: "Losing My Religion", emojis: "⬇️🙏" }, { name: "Creep", emojis: "🐛" },
+                { name: "Wonderwall", emojis: "❓🧱" }, { name: "Come Together", emojis: "🕺💃🤝" },
+                { name: "Piano Man", emojis: "🎹👨" }, { name: "Total Eclipse of the Heart", emojis: "🌑❤️" },
+                { name: "Where Is My Mind?", emojis: "❓🧠" }, { name: "Don't Go Breaking My Heart", emojis: "🚫💔" },
+                { name: "Rapper's Delight", emojis: "🎤😋" }, { name: "The Freshmen", emojis: "👦📚" },
+                { name: "I Can't Get No Satisfaction", emojis: "🚫 만족" }, { name: "Karma Police", emojis: "🚓" },
+                { name: "With a Little Help from My Friends", emojis: "🤏🤝" }, { name: "Basket Case", emojis: "🧺🤕" },
+                { name: "Lola", emojis: "💃" }, { name: "All Along the Watchtower", emojis: "➡️➡️🗼" },
+                { name: "Take on Me", emojis: "🙋‍♂️🤝" }, { name: "The Final Countdown", emojis: "🏁⏳" },
+                { name: "Hey Jude", emojis: "👋👦" }, { name: "Tears in Heaven", emojis: "💧😇" },
+                { name: "Free Bird", emojis: "🕊️" }, { name: "House of the Rising Sun", emojis: "🏠🌅" },
+            ],
+        },
+    };
+
+    const points = {
+        easy: 1,
+        medium: 3,
+        hard: 5,
+    };
+
+    // --- Game State Variables ---
+    let teams = Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        name: `Team ${i + 1}`,
+        score: 0,
+        hasChosenDifficulty: false,
+    }));
+    let currentTeamIndex = 0;
+    let gamePhase = 'pre-game';
+    let clue = null;
+    let choosingTimer = 10;
+    let guessingTimer = 30;
+    let timerInterval = null;
+    let inputTimer = 15;
+    let inputTimerInterval = null;
+    let selectedCategory = null;
+    let usedClues = {
+        movies: { easy: new Set(), medium: new Set(), hard: new Set() },
+        songs: { easy: new Set(), medium: new Set(), hard: new Set() },
+    };
+
+    // --- DOM Elements ---
+    const preGameScreen = document.getElementById('pre-game-screen');
+    const choosingScreen = document.getElementById('choosing-screen');
+    const guessingScreen = document.getElementById('guessing-screen');
+    const resultsScreen = document.getElementById('results-screen');
+    const winnerModal = document.getElementById('winner-modal');
+
+    const currentTeamNameSpan = document.getElementById('current-team-name');
+    const currentTeamGuessingSpan = document.getElementById('current-team-guessing');
+    const categoryButtonsDiv = document.getElementById('category-buttons');
+    const difficultyButtonsDiv = document.getElementById('difficulty-buttons');
+    const movieBtn = document.getElementById('movie-btn');
+    const songBtn = document.getElementById('song-btn');
+    const choosingTimerDisplay = document.getElementById('choosing-timer');
+    const guessingTimerDisplay = document.getElementById('guessing-timer');
+    const emojiClueDisplay = document.getElementById('emoji-clue');
+    const answerInput = document.getElementById('answer-input');
+    const resultMessage = document.getElementById('result-message');
+    const correctAnswerMessage = document.getElementById('correct-answer');
+    const scoreboardList = document.getElementById('scoreboard-list');
+    const winnerMessage = document.getElementById('winner-message');
+
+    // --- Game Functions ---
+    const updateUI = () => {
+        // Hide all screens
+        preGameScreen.classList.add('hidden');
+        choosingScreen.classList.add('hidden');
+        guessingScreen.classList.add('hidden');
+        resultsScreen.classList.add('hidden');
+
+        // Show the current screen
+        switch (gamePhase) {
+            case 'pre-game':
+                preGameScreen.classList.remove('hidden');
+                break;
+            case 'choosing':
+                choosingScreen.classList.remove('hidden');
+                currentTeamNameSpan.textContent = teams[currentTeamIndex].name;
+                // Reset category/difficulty buttons
+                movieBtn.classList.remove('btn-disabled');
+                songBtn.classList.remove('btn-disabled');
+                difficultyButtonsDiv.classList.add('hidden');
+                break;
+            case 'guessing':
+                guessingScreen.classList.remove('hidden');
+                currentTeamGuessingSpan.textContent = teams[currentTeamIndex].name;
+                emojiClueDisplay.textContent = clue.emojis;
+                break;
+            case 'results':
+                resultsScreen.classList.remove('hidden');
+                break;
+        }
+        updateScoreboard();
+    };
+
+    const updateScoreboard = () => {
+        scoreboardList.innerHTML = '';
+        const sortedTeams = [...teams].sort((a, b) => b.score - a.score);
+        sortedTeams.forEach(team => {
+            const li = document.createElement('li');
+            li.className = `flex justify-between items-center p-3 rounded-xl transition-all duration-300 transform ${team.id === teams[currentTeamIndex].id ? 'bg-gray-700 scale-105 shadow-md' : 'bg-gray-800'}`;
+            li.innerHTML = `
+                <span class="font-semibold text-white">${team.name}</span>
+                <span class="font-bold text-lg text-yellow-400">${team.score}</span>
+            `;
+            scoreboardList.appendChild(li);
+        });
+    };
+
+    window.startGame = () => {
+        teams = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `Team ${i + 1}`, score: 0, hasChosenDifficulty: false }));
+        currentTeamIndex = 0;
+        gamePhase = 'choosing';
+        clue = null;
+        selectedCategory = null;
+        usedClues = { movies: { easy: new Set(), medium: new Set(), hard: new Set() }, songs: { easy: new Set(), medium: new Set(), hard: new Set() } };
+        updateUI();
+        startChoosingTimer();
+    };
+
+    const startChoosingTimer = () => {
+        choosingTimer = 10;
+        choosingTimerDisplay.textContent = choosingTimer;
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            choosingTimer--;
+            choosingTimerDisplay.textContent = choosingTimer;
+            if (choosingTimer <= 0) {
+                clearInterval(timerInterval);
+                startTurn();
+            }
+        }, 1000);
+    };
+
+    window.setCategory = (category) => {
+        selectedCategory = category;
+        // Visually disable the other category button
+        movieBtn.classList.toggle('btn-disabled', category !== 'movies');
+        songBtn.classList.toggle('btn-disabled', category !== 'songs');
+        // Show difficulty buttons
+        difficultyButtonsDiv.classList.remove('hidden');
+    };
+
+    window.handleClueSelection = (difficulty) => {
+        if (!selectedCategory) {
+            return;
+        }
+        
+        clearInterval(timerInterval); // Stop the choosing timer
+        
+        // Disable difficulty buttons once one is chosen
+        document.querySelectorAll('#difficulty-buttons button').forEach(btn => btn.classList.add('btn-disabled'));
+
+        const availableClues = clueData[selectedCategory][difficulty].filter(
+            c => !usedClues[selectedCategory][difficulty].has(c.name)
+        );
+
+        if (availableClues.length === 0) {
+            alert("No more clues for this difficulty! Please choose another.");
+            document.querySelectorAll('#difficulty-buttons button').forEach(btn => btn.classList.remove('btn-disabled'));
+            startChoosingTimer();
+            return;
+        }
+
+        const randomIndex = Math.floor(Math.random() * availableClues.length);
+        const selectedClue = availableClues[randomIndex];
+
+        clue = selectedClue;
+        usedClues[selectedCategory][difficulty].add(selectedClue.name);
+        
+        gamePhase = 'guessing';
+        guessingTimer = 30;
+        inputTimer = 15;
+        answerInput.value = '';
+        answerInput.focus();
+
+        updateUI();
+        startGuessingTimer();
+    };
+
+    const startGuessingTimer = () => {
+        guessingTimerDisplay.textContent = guessingTimer;
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            guessingTimer--;
+            guessingTimerDisplay.textContent = guessingTimer;
+            if (guessingTimer <= 0) {
+                clearInterval(timerInterval);
+                handleAnswer(false);
+            }
+        }, 1000);
+    };
+
+    window.checkAnswer = () => {
+        clearInterval(timerInterval);
+        const isCorrect = answerInput.value.trim().toLowerCase() === clue.name.toLowerCase();
+        handleAnswer(isCorrect);
+    };
+
+    const handleAnswer = (isCorrect) => {
+        gamePhase = 'results';
+        
+        if (isCorrect) {
+            resultMessage.innerHTML = `<span class="text-yellow-400">Correct! 🎉</span>`;
+            teams[currentTeamIndex].score += points[getDifficultyFromClue(clue.name)];
+        } else {
+            resultMessage.innerHTML = `<span class="text-red-500">Incorrect. 😔</span>`;
+        }
+        correctAnswerMessage.textContent = `The correct answer was: "${clue.name}"`;
+
+        updateUI();
+        
+        if (inputTimerInterval) clearTimeout(inputTimerInterval);
+        inputTimerInterval = setTimeout(() => {
+            startTurn();
+        }, 15000);
+    };
+
+    window.startTurn = () => {
+        if (inputTimerInterval) clearTimeout(inputTimerInterval);
+        if (timerInterval) clearInterval(timerInterval);
+
+        currentTeamIndex = (currentTeamIndex + 1) % teams.length;
+        gamePhase = 'choosing';
+        
+        selectedCategory = null;
+        difficultyButtonsDiv.classList.add('hidden');
+        
+        updateUI();
+        startChoosingTimer();
+    };
+
+    window.declareWinner = () => {
+        if (teams.every(team => team.score === 0)) {
+            winnerMessage.innerHTML = "The game has not started yet or no team has scored points!";
+        } else {
+            const sortedTeams = [...teams].sort((a, b) => b.score - a.score);
+            const highestScore = sortedTeams[0].score;
+            const winningTeams = sortedTeams.filter(team => team.score === highestScore);
+
+            let winnerText = '';
+            if (winningTeams.length > 1) {
+                winnerText = "It's a tie! The winners are:<br>" + winningTeams.map(t => t.name).join(', ');
+            } else {
+                winnerText = `${winningTeams[0].name} wins with a score of ${highestScore}!`;
+            }
+            winnerMessage.innerHTML = winnerText;
+        }
+        winnerModal.classList.remove('hidden');
+    };
+
+    const getDifficultyFromClue = (clueName) => {
+        for (const category in clueData) {
+            for (const difficulty in clueData[category]) {
+                const found = clueData[category][difficulty].some(clue => clue.name === clueName);
+                if (found) {
+                    return difficulty;
+                }
+            }
+        }
+        return 'easy';
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateUI();
+    });
+
+</script>
+</body>
+</html>
