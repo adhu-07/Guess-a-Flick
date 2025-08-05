@@ -204,7 +204,7 @@
             easy: [
                 { name: "The Lion King", emojis: "🦁👑" }, { name: "Finding Nemo", emojis: "🔍🐠" },
                 { name: "Frozen", emojis: "❄️⛄️➡️" }, { name: "Jaws", emojis: "🦈" },
-                { name: "E.T. the Extra-Terrestrial", emojis: "👽📞🏡" }, { name: "Home Alone", emojis: "🏠🤦‍♂️" },
+                { name: "E.T. the Extra-Terrestrial", emojis: "👽�🏡" }, { name: "Home Alone", emojis: "🏠🤦‍♂️" },
                 { name: "Up", emojis: "🎈👴🏠" }, { name: "Shrek", emojis: "👹💚" },
                 { name: "Titanic", emojis: "🚢🧊💔" }, { name: "Toy Story", emojis: "🤠🚀➡️" },
                 { name: "Cinderella", emojis: "🐭🎃👠" }, { name: "Cars", emojis: "🚗💨" },
@@ -221,7 +221,7 @@
             medium: [
                 { name: "Jurassic Park", emojis: "🦖🏞️" }, { name: "Pulp Fiction", emojis: "🕺💃🍔🩸" },
                 { name: "The Matrix", emojis: "💊👨‍💻" }, { name: "Harry Potter and the Sorcerer's Stone", emojis: "🧙‍♂️⚡️🚂" },
-                { name: "The Breakfast Club", emojis: "�👧🧑👨‍🦱👩‍🦰🏫" }, { name: "The Shining", emojis: "🏨👻🧊🔪" },
+                { name: "The Breakfast Club", emojis: "👦👧🧑👨‍🦱👩‍🦰🏫" }, { name: "The Shining", emojis: "🏨👻🧊🔪" },
                 { name: "The Dark Knight", emojis: "🦇🃏" }, { name: "The Notebook", emojis: "📝👩‍❤️‍👨" },
                 { name: "Star Wars", emojis: "✨⚔️🚀" }, { name: "Pirates of the Caribbean", emojis: "🏴‍☠️⚓️💰" },
                 { name: "The Hunger Games", emojis: "🏹🔥" }, { name: "Forrest Gump", emojis: "🏃‍♂️🍫📦" },
@@ -315,12 +315,7 @@
     };
 
     // --- Game State Variables ---
-    let teams = Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        name: `Team ${i + 1}`,
-        score: 0,
-        hasChosenDifficulty: false,
-    }));
+    let teams = [];
     let currentTeamIndex = 0;
     let gamePhase = 'pre-game';
     let clue = null;
@@ -356,16 +351,69 @@
     const correctAnswerMessage = document.getElementById('correct-answer');
     const scoreboardList = document.getElementById('scoreboard-list');
     const winnerMessage = document.getElementById('winner-message');
+    
+    // --- Utility Functions ---
+    const saveState = () => {
+        const stateToSave = {
+            teams,
+            currentTeamIndex,
+            gamePhase,
+            selectedCategory,
+            clue,
+            usedClues: {
+                movies: {
+                    easy: [...usedClues.movies.easy],
+                    medium: [...usedClues.movies.medium],
+                    hard: [...usedClues.movies.hard],
+                },
+                songs: {
+                    easy: [...usedClues.songs.easy],
+                    medium: [...usedClues.songs.medium],
+                    hard: [...usedClues.songs.hard],
+                },
+            },
+        };
+        localStorage.setItem('guessAFlickState', JSON.stringify(stateToSave));
+    };
 
+    const loadState = () => {
+        try {
+            const savedData = localStorage.getItem('guessAFlickState');
+            if (savedData) {
+                const state = JSON.parse(savedData);
+                teams = state.teams;
+                currentTeamIndex = state.currentTeamIndex;
+                gamePhase = state.gamePhase;
+                selectedCategory = state.selectedCategory;
+                clue = state.clue;
+                usedClues = {
+                    movies: {
+                        easy: new Set(state.usedClues.movies.easy),
+                        medium: new Set(state.usedClues.movies.medium),
+                        hard: new Set(state.usedClues.movies.hard),
+                    },
+                    songs: {
+                        easy: new Set(state.usedClues.songs.easy),
+                        medium: new Set(state.usedClues.songs.medium),
+                        hard: new Set(state.usedClues.songs.hard),
+                    },
+                };
+                return true;
+            }
+        } catch (error) {
+            console.error("Failed to load game state from localStorage:", error);
+            localStorage.removeItem('guessAFlickState');
+        }
+        return false;
+    };
+    
     // --- Game Functions ---
     const updateUI = () => {
-        // Hide all screens
         preGameScreen.classList.add('hidden');
         choosingScreen.classList.add('hidden');
         guessingScreen.classList.add('hidden');
         resultsScreen.classList.add('hidden');
 
-        // Show the current screen
         switch (gamePhase) {
             case 'pre-game':
                 preGameScreen.classList.remove('hidden');
@@ -373,7 +421,6 @@
             case 'choosing':
                 choosingScreen.classList.remove('hidden');
                 currentTeamNameSpan.textContent = teams[currentTeamIndex].name;
-                // Reset category/difficulty buttons
                 movieBtn.classList.remove('btn-disabled');
                 songBtn.classList.remove('btn-disabled');
                 difficultyButtonsDiv.classList.add('hidden');
@@ -411,6 +458,7 @@
         clue = null;
         selectedCategory = null;
         usedClues = { movies: { easy: new Set(), medium: new Set(), hard: new Set() }, songs: { easy: new Set(), medium: new Set(), hard: new Set() } };
+        saveState();
         updateUI();
         startChoosingTimer();
     };
@@ -431,10 +479,8 @@
 
     window.setCategory = (category) => {
         selectedCategory = category;
-        // Visually disable the other category button
         movieBtn.classList.toggle('btn-disabled', category !== 'movies');
         songBtn.classList.toggle('btn-disabled', category !== 'songs');
-        // Show difficulty buttons
         difficultyButtonsDiv.classList.remove('hidden');
     };
 
@@ -443,9 +489,8 @@
             return;
         }
         
-        clearInterval(timerInterval); // Stop the choosing timer
+        clearInterval(timerInterval);
         
-        // Disable difficulty buttons once one is chosen
         document.querySelectorAll('#difficulty-buttons button').forEach(btn => btn.classList.add('btn-disabled'));
 
         const availableClues = clueData[selectedCategory][difficulty].filter(
@@ -460,17 +505,21 @@
         }
 
         const randomIndex = Math.floor(Math.random() * availableClues.length);
-        const selectedClue = availableClues[randomIndex];
+        const selectedClue = {
+            ...availableClues[randomIndex],
+            category: selectedCategory,
+            difficulty: difficulty,
+        };
 
         clue = selectedClue;
         usedClues[selectedCategory][difficulty].add(selectedClue.name);
         
         gamePhase = 'guessing';
         guessingTimer = 30;
-        inputTimer = 15;
         answerInput.value = '';
         answerInput.focus();
 
+        saveState();
         updateUI();
         startGuessingTimer();
     };
@@ -499,12 +548,13 @@
         
         if (isCorrect) {
             resultMessage.innerHTML = `<span class="text-yellow-400">Correct! 🎉</span>`;
-            teams[currentTeamIndex].score += points[getDifficultyFromClue(clue.name)];
+            teams[currentTeamIndex].score += points[clue.difficulty];
         } else {
             resultMessage.innerHTML = `<span class="text-red-500">Incorrect. 😔</span>`;
         }
         correctAnswerMessage.textContent = `The correct answer was: "${clue.name}"`;
-
+        
+        saveState();
         updateUI();
         
         if (inputTimerInterval) clearTimeout(inputTimerInterval);
@@ -523,6 +573,7 @@
         selectedCategory = null;
         difficultyButtonsDiv.classList.add('hidden');
         
+        saveState();
         updateUI();
         startChoosingTimer();
     };
@@ -546,20 +597,20 @@
         winnerModal.classList.remove('hidden');
     };
 
-    const getDifficultyFromClue = (clueName) => {
-        for (const category in clueData) {
-            for (const difficulty in clueData[category]) {
-                const found = clueData[category][difficulty].some(clue => clue.name === clueName);
-                if (found) {
-                    return difficulty;
-                }
-            }
-        }
-        return 'easy';
-    };
-
     document.addEventListener('DOMContentLoaded', () => {
-        updateUI();
+        if (loadState()) {
+            updateUI();
+            if (gamePhase === 'choosing') {
+                startChoosingTimer();
+            } else if (gamePhase === 'guessing') {
+                startGuessingTimer();
+            }
+        } else {
+            // Initialize fresh state if no data is found or an error occurred
+            teams = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `Team ${i + 1}`, score: 0, hasChosenDifficulty: false }));
+            gamePhase = 'pre-game';
+            updateUI();
+        }
     });
 
 </script>
